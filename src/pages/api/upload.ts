@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { IncomingForm } from "formidable";
+import formidable from "formidable";
 import fs from "fs";
 import path from "path";
 import fetch from "node-fetch";
@@ -16,13 +16,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: "Method Not Allowed" });
   }
 
-  const form = new IncomingForm({
+  const form = new formidable.IncomingForm({
     keepExtensions: true,
-    maxFileSize: 10 * 1024 * 1024, // 10 MB
+    maxFileSize: 5 * 1024 * 1024, // 5MB
   });
 
   form.parse(req, async (err, fields, files) => {
-    console.log("Parsing upload...");
     if (err || !files.file) {
       console.error("Form parse error:", err);
       return res.status(400).json({ message: "File parsing error" });
@@ -30,13 +29,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const uploadedFile = files.file[0];
     const filePath = uploadedFile.filepath;
-    console.log("Sending file to Python backend:", filePath);
-
     const formData = new FormData();
     formData.append("file", fs.createReadStream(filePath));
 
     try {
-      const response = await fetch("http://localhost:5001/parse", {
+      const response = await fetch("https://parsebank-backend.onrender.com/parse", {
         method: "POST",
         body: formData as any,
         headers: formData.getHeaders(),
@@ -44,7 +41,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Python backend error:", errorText);
         return res.status(500).json({ message: "Backend error", detail: errorText });
       }
 
@@ -56,7 +52,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       fs.writeFileSync(downloadPath, buffer);
 
       const downloadUrl = `/downloads/${filename}`;
-      console.log("Saved file:", downloadUrl);
       res.status(200).json({ downloadUrl });
     } catch (err) {
       console.error("Upload route error:", err);
