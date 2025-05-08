@@ -37,21 +37,27 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setDownloadUrl(null);
-
+  
     const formData = new FormData();
     formData.append("file", file);
-
+  
     try {
-      const res = await fetch("/api/upload", {
+      const res = await fetch("/api/parse", {
         method: "POST",
         body: formData,
       });
-
+  
+      const contentType = res.headers.get("content-type") || "";
+  
       if (!res.ok) {
-        const errorDetails = await res.json();
-        throw new Error(errorDetails.message || "Upload failed.");
+        const errorDetails = await res.text();
+        throw new Error(errorDetails || "Upload failed.");
       }
-
+  
+      if (!contentType.includes("application/json")) {
+        throw new Error("Unexpected server response.");
+      }
+  
       const data = await res.json();
       setDownloadUrl(data.downloadUrl);
     } catch (err: any) {
@@ -61,6 +67,7 @@ export default function Home() {
       setLoading(false);
     }
   };
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 text-gray-900 flex flex-col items-center justify-start px-6 py-16 font-sans">
